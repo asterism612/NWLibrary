@@ -1,9 +1,3 @@
-/**
- *  Lone Gun Man
- *  
- *  @projectDescription : NeowizGames Core Library
- *  @author : asterism612@neowiz.com
- */
 (function() {
   function NWLibrary(selector) {
     return new NWLibrary.core(selector);
@@ -54,15 +48,27 @@
      */
     defineEl: function(selector) {
       // childSelector 공백 제거.
-      var childSelector = /( )+(>)( )+/gi;
+      var childSelector = /( )*(>)( )*/gi,
+          emptyCheck = /([#\.\[\]*^~=a-zA-Z0-9]+)( )+(\..)+/gi;
+
       if(childSelector.test(selector)) selector = selector.replace(childSelector, RegExp.$2);
+      if(emptyCheck.test(selector)){
+        selector = selector.replace(emptyCheck, RegExp.$1+" "+RegExp.$3);
+      }
+
       var arrSel = selector.split(" "),
           root = (arguments[1]) ? arguments[1] : [document],
           ret;
-      if (arrSel.length > 1) for(var i = 0; i < arrSel.length; i++) root = this.checkPseudoSelector(arrSel[i], root);
+
+      if (arrSel.length > 1) {
+        for(var i = 0; i < arrSel.length; i++){
+          root = this.checkPseudoSelector(arrSel[i], root);
+        }
+      }
       else root = this.checkPseudoSelector(arrSel[0], root);
       return (root.length == 1) ? root[0] : root;
     },
+
     checkPseudoSelector: function(selector, root) {
       if(selector.indexOf(":") > -1){
         var arrPseudo = selector.split(":"),
@@ -82,6 +88,7 @@
       }
       return root;
     },
+
     /**
      * Dom 검색 로직.
      * @param {Object} node
@@ -105,12 +112,12 @@
           arrclone[0] = arrInfo[0];
           arrInfo.splice(0, 1);
           arrclone[1] = arrInfo.join(">");
-          
+
       root = this.getSelector(arrclone[0], root);
       root = (NWLibrary.isArray(root)) ? root : [root];
       attSel = this.selType(arrclone[1]);
       searchSelector = arrclone[1];
-      
+
       if(/^(\.|\#)*.+>(.+)$/i.test(searchSelector)) return this.checkChild(searchSelector, root);
       else return {attSel:attSel, searchSelector:searchSelector, root:root};
     },
@@ -126,21 +133,23 @@
             clsContent = selector.substr(1, selector.length-1),
             attSel = this.selType(selector),
             searchSelector = (attSel == 'tag') ? selector : clsContent;
-            
+
         if (/^(\.|\#)*.+>(.+)$/i.test(selector)){
           var ret = this.checkChild(selector, root);
-          attSel = ret.attSel;
-          searchSelector = ret.searchSelector;
-          root = ret.root;
+          //attSel = ret.attSel;
+          //searchSelector = ret.searchSelector;
+          //root = ret.root;
+
+          return this.getSelector(ret.searchSelector, ret.root);
         }
         
         if (/^(\.|\#)*(.+)\[(.+)\]$/i.test(selector)){
           root = this.getSelector(RegExp.$1+""+RegExp.$2);
           attSel = "xpath";
         }
-        
-        if(clsContent.indexOf(".") > -1){
-          var arrLinkedSel = clsContent.split("."),
+
+        if(searchSelector.indexOf(".") > -1){
+          var arrLinkedSel = searchSelector.split("."),
               firstItem = this.defineEl(fWord+""+arrLinkedSel[0]);
 
           if(firstItem.length === undefined) firstItem = [firstItem];   
@@ -191,11 +200,11 @@
                     for(var i = 0; i < xpathKind.length; i++){
                       if(xss.indexOf(xpathKind[i]) > -1){
                         var arrInfo = xss.split(xpathKind[i]);
-                        attSel = arrInfo[0];
-                        if(NWLibrary.browser == "ie" && NWLibrary.browserver < 8 && attSel == "class") attSel="className";
+                        nodeSel = arrInfo[0];
+                        if(NWLibrary.browser == "ie" && NWLibrary.browserver < 8 && nodeSel == "class") nodeSel="className";
                         searchSelector = arrInfo[1].replace(/'|"/gi, '');
                         if(obj === node){
-                          var attVal = node.getAttribute(attSel) || "";
+                          var attVal = node.getAttribute(nodeSel) || "";
                           switch(xpathKind[i]){
                             case "=" : if (attVal === searchSelector) results.push(node); break;
                             case "*=" : if (attVal.indexOf(searchSelector) > -1) results.push(node); break;
@@ -252,30 +261,25 @@
      * 
      */
     trigger: function(type, data) {
-      if (document.createEvent) {
-        var e = document.createEvent("HTMLEvents");
+      var e;
+      if(document.createEvent){
+        e = document.createEvent("HTMLEvents");
         e.initEvent(type, true, true);
-        this.each(function(i){
-          if(NWLibrary.isObject(data)){
-            for(var i in data) {
-              e[i] = data[i];
-            }
-          }
-          e.data = data;
-          this.dispatchEvent(e);
-        });
-      } else {
-        var e = document.createEventObject();
-        this.each(function(i){
-          if(NWLibrary.isObject(data)){
-            for(var i in data) {
-              e[i] = data[i];
-            }
-          }
-          e.data = data;
-          this.cloneNode(true).fireEvent("on"+type, e);
-        });
+      }else{
+        e = document.createEventObject();
       }
+
+      this.each(function(i){
+        if(NWLibrary.isObject(data)){
+          for(var i in data) e[i] = data[i]; 
+        }
+        e.data = data;
+        if(document.createEvent){
+          this.dispatchEvent(e);
+        }else{
+          this.cloneNode(true).fireEvent("on"+type, e); 
+        }
+      });
     },
     /**
      * DOM이 로드된 후에 이벤트 추가
@@ -295,6 +299,18 @@
  	      }, 500);
  	    }
     },
+
+    _newMouseEvent : function(msType, fn){
+      var type = (msType === "mouseenter") ? "mouseover" : "mouseout";
+      this.el.addEventListener(type, nfn = function(e){
+        e.keyCode = e.which;
+        var obj = e.relatedTarget;
+        while(obj != this){
+          if(!obj) return fn.call(this, e);
+          obj=obj.parentNode;
+        }
+      }, false);
+    },
     /**
      * 이벤트 추가.
      * @param {Object} type
@@ -308,10 +324,18 @@
               this.el.data = arguments[1];
               fn = arguments[2];
             }
-            this.el.addEventListener(type, nfn = function(e){
-              e.keyCode = e.which;
-              fn.call(this, e);
-            }, false);
+            switch(type){
+              case "mouseenter" : this._newMouseEvent("mouseenter", fn);     
+                break;
+              case "mouseleave" : this._newMouseEvent("mouseleave", fn);
+                break;
+              default : 
+                this.el.addEventListener(type, nfn = function(e){
+                  e.keyCode = e.which;
+                  fn.call(this, e);
+                }, false);
+                break;
+            }
             window.___eventList.push({type:type, func:nfn, elem:this.el});
           } else if (this.el && this.el.length) {
             for (var i = 0; i < this.el.length; i++) {
@@ -375,7 +399,7 @@
           } else {
             var __self = this;
             this.each(function(i){
-              this.removeEventListener(type, __self.globalEventControl(type, this), false);
+              this.removeEventListener(type, __self.globalEventRemove(type, this), false);
             })
           }
           return this;
@@ -389,14 +413,14 @@
           } else {
             var __self = this;
             this.each(function(i){
-              this.detachEvent('on' + type, __self.globalEventControl(type, this));
+              this.detachEvent('on' + type, __self.globalEventRemove(type, this));
             });
           }
           return this;
         };
       }
     })(),
-    globalEventControl : function(type, elem) {
+    globalEventRemove : function(type, elem) {
       var g_event = window.___eventList;
       for(var j = 0; j < g_event.length; j++){
         if(g_event[j].type === type && g_event[j].elem === elem){
@@ -412,7 +436,7 @@
      */
     find : function(selector) {
       var findObj = [],
-          obj = this,
+          obj = NWLibrary.copy(this),
           searchSelector = function(parentNode){
             var tmp = [];
             if(NWLibrary.browser == "ie" && NWLibrary.browserver < 9){ 
@@ -436,11 +460,11 @@
             }
             return tmp;
           };
-      if(this.el.nodeName) {
-        this.el = searchSelector(this.el);
+      if(obj.el.nodeName) {
+        obj.el = searchSelector(obj.el);
       } else {
-        for(var i = 0; i < this.el.length; i++){
-          var tmp = searchSelector(this.el[i]);
+        for(var i = 0; i < obj.el.length; i++){
+          var tmp = searchSelector(obj.el[i]);
           if(this.nodetype(tmp) == "element"){
             findObj.push(tmp);
           }else{
@@ -449,9 +473,9 @@
             }
           }
         }
-        this.el = findObj;
+        obj.el = findObj;
       }
-      return this;
+      return obj;
     },
     /**
      * array element에서 특정 index element 반환
@@ -612,7 +636,7 @@
      */
     val: function() {
       if(this.el.length) throw "selector's length bigger than 1! use nw.each";
-      if (arguments[0]) {
+      if (arguments[0] !== undefined) {
         this.el.value = arguments[0];
         return this;
       } else {
@@ -681,6 +705,7 @@
      */
     hasClass: function(className) {
       var cls = [], rtn = false;
+      className = NWLibrary.trim(className);
       this.each(function(i){
         var arrCls = this.className.split(" ");
         for(var i = 0, len = arrCls.length; i < len; i++){
@@ -696,6 +721,7 @@
      * className 추가
      */
     addClass: function(className) {
+      className = NWLibrary.trim(className);
       this.each(function(i){
         if(this.className.indexOf(className) === -1)
           this.className = this.className + " " + className;
@@ -706,8 +732,9 @@
      * className 삭제
      */
     removeClass: function(className) {
-      var cls = [];
+      className = NWLibrary.trim(className);
       this.each(function(i){
+        var cls = [];
         var arrCls = this.className.split(" ");
         for(var i = 0, len = arrCls.length; i < len; i++){
           if(arrCls[i] !== className) cls.push(arrCls[i]);
@@ -743,11 +770,15 @@
      */
     remove: function(element) {
       this.each(function(i){
-	   	  var parent = this;
-    		var selector = NWLibrary(this).find(element);
-    		selector.each(function(i){
-		    	parent.removeChild(this);
-    		});
+        if(element) {
+          var parent = this;
+          var selector = NWLibrary(this).find(element);
+          selector.each(function(i){
+            parent.removeChild(this);
+          });
+        } else {
+          this.parentNode.removeChild(this);
+        }
     	});
       return this;
     },
@@ -858,61 +889,72 @@
         this.style.display = "block";
       });
     },
-    slideDown : function(type, callback)
-    {
-      this.each(function(i){
-        clone = this.cloneNode(true);
-        document.body.appendChild(clone);
-        clone.style.position = "absolute";
-        clone.style.top = "-9999px";
-        clone.style.display = "block";
-        var offsetClone = NWLibrary(clone).offset();
-        document.body.removeChild(clone);
-        clone = undefined;
-        
-        var obj = NWLibrary(this);
-        obj.css({'display':'block', 'overflow':'hidden', 'height':'0px'});
-        var objOffset = offsetClone,
-            startPoint = 0,
-            speed = (type == "slow") ? 20 : 10,
-            perHeight = Math.round(objOffset.height / (1000 / speed));
-        perHeight = (perHeight == 0) ? 1 : perHeight;
+    
+    slideDown : function(type, callback){ 
+      if(NWLibrary.isAni != true){
+        this.each(function(i){
+          var obj = NWLibrary(this),
+              _h = parseInt(obj.css("height"), 10);
 
-        var pInterval = setInterval(function(){
-          startPoint = startPoint + perHeight;
-          if(startPoint < objOffset.height){
-            obj.css({'height':startPoint+"px"});
-          }else{
-            obj.css({'height':objOffset.height+"px"});
-            if(callback) callback.call(null);
-            clearInterval(pInterval);
+          if(_h <= 0){
+            clone = this.cloneNode(true);
+            document.body.appendChild(clone);
+            clone.style.position = "absolute";
+            clone.style.top = "-9999px";
+            clone.style.display = "block";
+            var offsetClone = NWLibrary(clone).offset();
+            document.body.removeChild(clone);
+            clone = undefined;
           }
-        }, speed);
-      });
+
+          var absHeight = (_h > 0) ? _h : offsetClone.height,
+              startPoint = 0,
+              speed = (type == "slow") ? 5 : 1,
+              perHeight = (speed == 1) ? 15 : 10;
+          obj.css({'display':'block', 'overflow':'hidden', 'height':'0px', 'zIndex':'555'});
+
+          var pInterval = setInterval(function(){
+            startPoint = startPoint + perHeight;
+            if(startPoint < absHeight){
+              NWLibrary.isAni = true;
+              obj.css({'height':startPoint+"px"});
+            }else{
+              NWLibrary.isAni = false;
+              obj.css({'height':absHeight+"px"});
+              if(callback) callback.call(null);
+              clearInterval(pInterval);
+            }
+          }, speed);
+        });
+      }
       return this;
-    },
+    }, 
+    
     slideUp : function(type, callback)
     {
-      this.each(function(i){
-        var obj = NWLibrary(this);
-        var objOffset = obj.offset();
-        var startPoint = objOffset.height,
-            speed = (type == "slow") ? 20 : 10,
-            perHeight = Math.round(objOffset.height / (1000 / speed));
-        perHeight = (perHeight == 0) ? 1 : perHeight;
-        
-        var pInterval = setInterval(function(){
-          if(startPoint > 0){
-            startPoint = startPoint - perHeight;
-            obj.css({'height':startPoint+"px"});
-          }else{
-            obj.css({'height':0});
-            obj.css({'display':'none', 'height':objOffset.height+"px"});
-            if(callback) callback.call(null);
-            clearInterval(pInterval);
-          }
-        }, speed);
-      });
+      if(NWLibrary.isAni != true){
+        this.each(function(i){
+          var obj = NWLibrary(this),
+              _h = parseInt(obj.css("height"), 10);
+              absHeight = (_h <= 0) ? obj.offset().height : _h;
+              startPoint = _h || absHeight,
+              speed = (type == "slow") ? 5 : 1,
+              perHeight = (speed = 1) ? 15 : 10;
+          
+          var pInterval = setInterval(function(){
+            if(startPoint > perHeight){
+              NWLibrary.isAni = true;
+              startPoint = startPoint - perHeight;
+              obj.css({'height':startPoint+"px"});
+            }else{
+              NWLibrary.isAni = false;
+              obj.css({'display':'none', 'height':_h+"px"});
+              if(callback) callback.call(null);
+              clearInterval(pInterval);
+            }
+          }, speed);
+        });
+      }
       return this;
     },
     fadeIn : function(speed, callback)
@@ -1085,8 +1127,12 @@
   NWLibrary.extend("setCookie", function(cookieName, value, expiredays) {
     var exdate = new Date();
     var path = (arguments[3]) ? arguments[3] : "/"
+    var arrDomain = document.domain.split("."); 
+    var arrDomainLen = arrDomain.length;
+    strdomain = arrDomain[arrDomainLen-2]+"."+arrDomain[arrDomainLen-1];
+    var domain = ";domain=" + strdomain;
     exdate.setDate(exdate.getDate() + expiredays);
-    document.cookie = cookieName + "=" + escape(value) + ((expiredays == null) ? "; path="+path : "; path="+path+"; expires=" + exdate.toGMTString());
+    document.cookie = cookieName + "=" + escape(value) + ((expiredays == null) ? "; path="+path : "; path="+path+"; expires=" + exdate.toGMTString()) + domain;
   });
   /**
    * 쿠키 get
@@ -1111,8 +1157,12 @@
   NWLibrary.extend("delCookie", function(cookieName) {
     var expireDate = new Date();
     var path = (arguments[1]) ? arguments[1] : "/"
+    var arrDomain = document.domain.split("."); 
+    var arrDomainLen = arrDomain.length;
+    strdomain = arrDomain[arrDomainLen-2]+"."+arrDomain[arrDomainLen-1];
+    var domain = ";domain=" + strdomain;
     expireDate.setDate(expireDate.getDate() - 1);
-    document.cookie = cookieName + "= " + "; path="+path+"; expires=" + expireDate.toGMTString() + "; ";
+    document.cookie = cookieName + "= " + "; path="+path+"; expires=" + expireDate.toGMTString() + domain;
   });
   /**
    * Trim 양쪽 여백 없애기
@@ -1515,7 +1565,7 @@
   NWLibrary.extend("arrayShuffle", function(arr) {
     return arr.sort(function(a, b) {
       return Math.round(Math.random() * 2) - 1;
-    });
+    }); 
   });
   /**
    * 배열 인자 삭제하기 
@@ -1534,35 +1584,35 @@
    * @return {browser, os, browserver}
    */
   (function() {
-    var userAgent = navigator.userAgent;
-    var platform = navigator.platform;
+    var userAgent = navigator.userAgent,
+        platform = navigator.platform,
+        de = document.documentElement,
+        arrData = [{
+          'exp': /Chrome/,
+          'ver': /Chrome\/[0-9.]+/i,
+          'name': 'chrome'
+        },
+        {
+          'exp': /Firefox/,
+          'ver': /Firefox\/[0-9.]+/i,
+          'name': 'firefox'
+        },
+        {
+          'exp': /Safari/,
+          'ver': /Version\/[0-9.]+/i,
+          'name': 'safari'
+        },
+        {
+          'exp': /MSIE/,
+          'ver': /MSIE\s{1}[0-9.]+/i,
+          'name': 'ie'
+        },
+        {
+          'exp': /Opera/,
+          'ver': /Version\/[0-9.]+/i,
+          'name': 'opera'
+        }];
     var browser = OS = version = '';
-    var de = document.documentElement;
-    var arrData = [{
-      'exp': /Chrome/,
-      'ver': /Chrome\/[0-9.]+/i,
-      'name': 'chrome'
-    },
-    {
-      'exp': /Firefox/,
-      'ver': /Firefox\/[0-9.]+/i,
-      'name': 'firefox'
-    },
-    {
-      'exp': /Safari/,
-      'ver': /Version\/[0-9.]+/i,
-      'name': 'safari'
-    },
-    {
-      'exp': /MSIE/,
-      'ver': /MSIE\s{1}[0-9.]+/i,
-      'name': 'ie'
-    },
-    {
-      'exp': /Opera/,
-      'ver': /Version\/[0-9.]+/i,
-      'name': 'opera'
-    }];
     for (var i = 0; i < arrData.length; i++) {
       if (arrData[i].exp.test(userAgent) === true) {
         browser = arrData[i].name;
@@ -1635,49 +1685,49 @@
     return newObj;
   });
   
-  NWLibrary.extend("callHashContents", function(url, callback) {
-    if(nw.browser == "ie"){
-    	document.domain = document.domain;
-      var ifr = document.frames['__hashControl'];
-      ifr.hash = NWLibrary.globalHash;
-    }
-    callback.call(null, url);
-  });
   NWLibrary.extend("startHashControl", function(callback){
-    if(nw.browser == "ie"){
-    	var frm = document.createElement('IFRAME');
-    	frm.setAttribute("name", "__hashControl");
-    	frm.setAttribute("id", "__hashControl");
-    	frm.setAttribute("width", 0);    	
-    	frm.setAttribute("height", 0);    	
-    	document.body.appendChild(frm);
-    	
-      var ifrm = document.getElementById('__hashControl');
-      ifrm_doc = ifrm.contentWindow.document;
-      ifrm_doc.open();
-      ifrm_doc.write("<script type='text/javascript'>var hash = '';document.domain='"+document.domain+"';<\/script>");
-      ifrm_doc.close();      	
+    if(nw.browser == "ie" && nw.browserver < 8){
+      var frame = document.createElement("iframe");
+      frame.id = "__hashControl";
+      frame.name = "__hashControl";
+      frame.style.display = "none";
+      document.body.appendChild(frame);
+      writeFrame("");
     }
-    NWLibrary.__hashInterval = setInterval(function(){
-      if(nw.browser == "ie"){
-        if(nw("#__hashControl").readyState == "complete"){
-          var ifr = document.frames['__hashControl'];
-          var getHash = ifr.hash;
-          if(getHash.length > 0){
-            NWLibrary.callHashContents(getHash, callback);
-          }
+
+    window.setInterval(function () {
+      var h = document.location.hash;
+      if(h != NWLibrary.globalHash){
+        if(h.length > 1){
+          NWLibrary.globalHash = h;
+          callback.call(null, h);
         }
       }
-      var sHash = window.location.hash.replace('#', '');
-      if(NWLibrary.globalHash != sHash){
-        if(sHash.length > 0){
-          NWLibrary.callHashContents(sHash, callback);
-          NWLibrary.globalHash = sHash;
+    }, 50);
+
+    function writeFrame(hashString){
+      var f = document.getElementById("__hashControl");
+      var d = f.contentDocument || f.contentWindow.document;
+      d.open();
+      d.write("<script>var _hash = '" + hashString + "'; window.onload = parent.nw.syncHash;<\/script>");
+      d.close();
+    };
+
+    return {
+      setHash : function(s){
+        if(nw.browser == "ie" && nw.browserver < 8){
+          writeFrame(s);
         }
+        document.location.hash = s;
       }
-      if(arguments[1]) location.hash = arguments[1];
-    }, 100);
+    }
   });
-   
+
+  NWLibrary.extend("syncHash", function(){
+    var newHashString  = this._hash;
+    if(newHashString != document.location.hash){
+      document.location.hash = newHashString;
+    }
+  });
   window.nw = NWLibrary;
 })();
