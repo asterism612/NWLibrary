@@ -13,7 +13,7 @@
     
     if(this.selector == window) {
     	this.el = window;
-    }else if (this.selector.nodeType) {
+    }else if (this.selector.nodeType) { // nodeType을 가지고 있을 때
       this.el = this.selector;
     }else{ // string일 경우
       if(NWLibrary.browser == "ie" && NWLibrary.browserver < 9){ 
