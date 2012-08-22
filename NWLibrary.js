@@ -13,9 +13,9 @@
     
     if(this.selector == window) {
     	this.el = window;
-    }else if (this.selector.nodeType) { // element일 경우
+    }else if (this.selector.nodeType) {
       this.el = this.selector;
-    }else{ // string일 경우
+    }else{
       if(NWLibrary.browser == "ie" && NWLibrary.browserver < 9){ 
         if (NWLibrary.isString(this.selector)) {
           var moreSel = this.selector.split(",");
