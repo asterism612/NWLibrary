@@ -1,0 +1,2 @@
+{"ts":1347517252792,"silentsave":true,"restoring":false,"patch":[[{"diffs":[[1,"NWLibrary\n- 네오위즈게임즈 m.pmang.com 에서 사용중인 라이브러리\n- manual(http://asterism.linuxstudy.pe.kr/mento/nwlib.html)\n- 여러번 마이너 업데이트가 있었는데 매뉴얼에 적용하지 못함... ㅡ,.ㅡ;\n"]],"start1":0,"start2":0,"length1":0,"length2":149}]],"length":149}
+{"ts":1347517295371,"patch":[[{"diffs":[[0,"지 못함"],[-1,"... ㅡ,.ㅡ;"],[0,"\n"]],"start1":135,"start2":135,"length1":14,"length2":5}]],"length":140,"saved":false}
