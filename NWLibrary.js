@@ -1,4 +1,3 @@
-
 /**
  *  Lone Gun Man
  *  
@@ -1250,15 +1249,17 @@
      * @param {Object} number
      */
     NWLibrary.extend("number_format", function(number) {
-        var num = number.toString();
-        var reg = /(\-?\d+)(\d{3})($|\.\d+)/g;
-        if (reg.test(num)) {
-            return num.replace(reg, function(str, n1, n2, n3) {
-                return NWLibrary.number_format(n1) + "," + n2 + "" + n3;
-            });
-        } else {
-            return num;
-        }
+      var num = number.toString(),
+          reg = /(\-?\d+)(\d{3})($|\.\d+)/g,
+          division = arguments[1] ? arguments[1] : ",";
+
+      if (reg.test(num)) {
+        return num.replace(reg, function(str, n1, n2, n3) {
+          return NWLibrary.number_format(n1, division) + division + n2 + "" + n3;
+        });
+      } else {
+        return num;
+      }
     });
     /**
      * eval 대체 함수.
@@ -1514,6 +1515,7 @@
             if (vars.onsendbefore) vars.onsendbefore.call(null);
             vars.xhr.open(vars.method, vars.url, vars.async);
             if (vars.xhr.overrideMimeType) vars.xhr.overrideMimeType(mime);
+            vars.xhr.setRequestHeader("X_REQUESTED_WITH", "XMLHttpRequest");
             switch (vars.method) {
             case "get":
                 vars.xhr.send(null);
@@ -1799,4 +1801,3 @@
 
     window.nw = NWLibrary;
 })();
- 
