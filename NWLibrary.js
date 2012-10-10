@@ -1755,48 +1755,50 @@
         for (i in obj) newObj[i] = obj[i];
         return newObj;
     });
+    
+    NWLibrary.extend("startHashControl", function(callback){
+      if(nw.browser == "ie" && nw.browserver < 8){
+        var frame = document.createElement("iframe");
+        frame.id = "__hashControl";
+        frame.name = "__hashControl";
+        frame.style.display = "none";
+        document.body.appendChild(frame);
+        writeFrame("");
+      }
 
-    NWLibrary.extend("callHashContents", function(url, callback) {
-        if (nw.browser == "ie") {
-            var ifr = document.frames['__hashControl'];
-            ifr.hash = NWLibrary.globalHash;
+      window.setInterval(function () {
+        var h = document.location.hash;
+        if(h != NWLibrary.globalHash){
+          if(h.length > 1){
+            NWLibrary.globalHash = h;
+            callback.call(null, h);
+          }
         }
-        callback.call(null, url);
+      }, 50);
+
+      function writeFrame(hashString){
+        var f = document.getElementById("__hashControl");
+        var d = f.contentDocument || f.contentWindow.document;
+        d.open();
+        d.write("<script>var _hash = '" + hashString + "'; window.onload = parent.nw.syncHash;<\/script>");
+        d.close();
+      };
+
+      return {
+        setHash : function(s){
+          if(nw.browser == "ie" && nw.browserver < 8){
+            writeFrame(s);
+          }
+          document.location.hash = s;
+        }
+      }
     });
-    NWLibrary.extend("startHashControl", function(callback) {
-        if (nw.browser == "ie") {
-            var frm = document.createElement('IFRAME');
-            frm.setAttribute("name", "__hashControl");
-            frm.setAttribute("id", "__hashControl");
-            frm.setAttribute("width", 0);
-            frm.setAttribute("height", 0);
-            document.body.appendChild(frm);
 
-            var ifrm = document.getElementById('__hashControl');
-            ifrm_doc = ifrm.contentWindow.document;
-            ifrm_doc.open();
-            ifrm_doc.write("<script type='text/javascript'>var hash = '';<\/script>");
-            ifrm_doc.close();
-        }
-        NWLibrary.__hashInterval = setInterval(function() {
-            if (nw.browser == "ie") {
-                if (nw("#__hashControl").readyState == "complete") {
-                    var ifr = document.frames['__hashControl'];
-                    var getHash = ifr.hash;
-                    if (getHash.length > 0) {
-                        NWLibrary.callHashContents(getHash, callback);
-                    }
-                }
-            }
-            var sHash = window.location.hash.replace('#', '');
-            if (NWLibrary.globalHash != sHash) {
-                if (sHash.length > 0) {
-                    NWLibrary.callHashContents(sHash, callback);
-                    NWLibrary.globalHash = sHash;
-                }
-            }
-            if (arguments[1]) location.hash = arguments[1];
-        }, 100);
+    NWLibrary.extend("syncHash", function(){
+      var newHashString  = this._hash;
+      if(newHashString != document.location.hash){
+        document.location.hash = newHashString;
+      }
     });
 
     window.nw = NWLibrary;
