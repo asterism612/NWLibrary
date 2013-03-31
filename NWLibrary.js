@@ -1262,7 +1262,7 @@
       }
     });
     /**
-     * eval 대체 함수. - eval Deprecated.
+     * eval 대체 함수. - eval Deprecated
      * @param {Object} str
      */
     NWLibrary.extend("exec", function(str) {
